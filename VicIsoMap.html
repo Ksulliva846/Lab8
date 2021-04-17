@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>carto-vl</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+
+  <!-- Include CARTO VL JS -->
+  <script src="https://libs.cartocdn.com/carto-vl/v0.9.1/carto-vl.min.js"></script>
+
+  <!-- Include Mapbox GL JS -->
+  <script src="https://libs.cartocdn.com/mapbox-gl/v0.48.0-carto1/mapbox-gl.js"></script>
+
+  <!-- Include Mapbox GL CSS -->
+  <link href="https://libs.cartocdn.com/mapbox-gl/v0.48.0-carto1/mapbox-gl.css" rel="stylesheet" />
+
+  <!-- Mapbox Assembly -->
+<link href="https://api.mapbox.com/mapbox-assembly/v0.23.2/assembly.min.css"
+rel="stylesheet"/>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    #map {
+      position: absolute;
+      height: 100%;
+      width: 100%;
+      z-index: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+
+  <script>
+    // Basemap
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: carto.basemaps.darkmatter,
+      center: [-3.6967239965247245, 40.43119726695207],
+      zoom: 10
+    });
+
+    const nav = new mapboxgl.NavigationControl();
+    map.addControl(nav, 'top-left');
+
+    map.on('mousemove', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+
+
+    // Mapbox API
+    async function isochronesCalculation(e) {
+      const TOKEN = 'pk.eyJ1Ijoia3N1bGxpdmEiLCJhIjoiY2tlcmpxc3h0MGhzZjJ4c2F2NTU2a2gxaSJ9.q6fZlXQRPzOSvidhKk4KDw';
+      const { lng, lat } = e.lngLat;
+      const url = `https://api.mapbox.com/isochrone/v1/mapbox/walking/${lng},${lat}?contours_minutes=5,10,15&contours_colors=6706ce,04e813,4286f4&polygons=true&access_token=${TOKEN}`;
+      let response = await fetch(url);
+      let data = await response.json();
+
+      const source = new carto.source.GeoJSON(data);
+      const viz = new carto.Viz(`
+        color: opacity(ramp(buckets($contour, [5, 10, 15]), [red, orange, yellow]), 0.4)
+        width: 0
+      `);
+
+      const ISO = 'isochrones';
+      const isochronesLayer = new carto.Layer(ISO, source, viz);
+      if (map.getLayer(ISO)) {
+        map.removeLayer(ISO);
+      }
+      isochronesLayer.addTo(map);
+    }
+
+    map.on('click', isochronesCalculation)
+    // Target the "params" form in the HTML portion of your code
+    var params = document.getElementById('params');
+
+    // When a user changes the value of profile or duration by clicking a button, change the parameter's value and make the API query again
+    params.addEventListener('change', function(e) {
+      if (e.target.name === 'profile') {
+        profile = e.target.value;
+        getIso();
+      } else if (e.target.name === 'duration') {
+        minutes = e.target.value;
+        getIso();
+      }
+    });
+
+  </script>
+</body>
+
+</html>
